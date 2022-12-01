@@ -11,10 +11,14 @@
 #include <sys/iofunc.h>
 #include <sys/dispatch.h>
 #include <sys/time.h>
+#include <string.h>
 #include <curl/curl.h>
 
 #include "defs.h"
 
+#define WEBSITE_URL			"https://mywebsite.com"
+
+char* generatePayload(_Int8t pulseCode, char* dataType, int value);
 int makePostRequest(int deviceID, char* datatype, char* payload);
 
 int main(int argc, char **argv)
@@ -27,8 +31,8 @@ int main(int argc, char **argv)
 	name_attach_t *attach;
 	myMessage_t msg;
 	int 	rcvid;
-	long 	timestamp;
 	int 	heartRate, bloodPressure, bodyTemperature, stepCount, GPSData;
+	char*	payload;
 
 	/* Create a local name (/dev/name/local/...) */
 	if ((attach = name_attach(NULL, ATTACH_POINT, 0)) == NULL) {return EXIT_FAILURE;}
@@ -52,39 +56,31 @@ int main(int argc, char **argv)
 				case HEART_RATE_PULSE_CODE:
 					heartRate = msg.pulse.value.sival_int;
 					printf("received heart rate data = %d\n", heartRate);
-					char payload[256];
-					timeStamp = time(NULL);
-					sprintf(payload, "{\"timestamp\":%ld, \"heartRate\":%d}", timeStamp, heartRate);
-					printf("%s\n", payload);
+					payload = generatePayload(msg.pulse.code, "heartRate", heartRate);
+					makePostRequest(0, "heartRate", payload);
 					break;
 				case BLOOD_PRESSURE_PULSE_CODE:
 					//possible to have two ints produced for systolic and diastolic?
 					bloodPressure = msg.pulse.value.sival_int;
 					printf("received blood pressure data = %d\n", bloodPressure);
-					char payload[256];
-					timeStamp = time(NULL);
-					sprintf(payload, "{\"timestamp\":%ld, \"bloodPressure\":%d}", timeStamp, bloodPressure);
-					printf("%s\n", payload);
+					payload = generatePayload(msg.pulse.code, "bloodPressure", bloodPressure);
+					makePostRequest(0, "bloodPressure", payload);
 					break;
 				case BODY_TEMPERATURE_PULSE_CODE:
 					bodyTemperature = msg.pulse.value.sival_int;
 					printf("received body temp data = %d\n", bodyTemperature);
-					char payload[256];
-					timeStamp = time(NULL);
-					sprintf(payload, "{\"timestamp\":%ld, \"bodyTemperature\":%d}", timeStamp, bodyTemperature);
-					printf("%s\n", payload);
+					payload = generatePayload(msg.pulse.code, "bodyTemperature", bodyTemperature);
+					makePostRequest(0, "bodyTemperature", payload);
 					break;
 				case STEP_COUNT_PULSE_CODE:
 					stepCount = msg.pulse.value.sival_int;
 					printf("received step count data = %d\n", stepCount);
-					char payload[256];
-					timeStamp = time(NULL);
-					sprintf(payload, "{\"timestamp\":%ld, \"stepCount\":%d}", timeStamp, stepCount);
-					printf("%s\n", payload);
+					payload = generatePayload(msg.pulse.code, "stepCount", stepCount);
+					makePostRequest(0, "stepCount", payload);
 					break;
 				case GPS_PULSE_CODE:
 					//no api route
-					printf("receieved gps data = %d\n", msg.pulse.value.sival_int);
+					printf("received gps data = %d\n", msg.pulse.value.sival_int);
 					break;
 				default:
 					printf("Pulse code = %d | value = %d\n\n", msg.pulse.code, msg.pulse.value.sival_int);
@@ -102,8 +98,18 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-int makePostRequest(int deviceID, char* datatype, char* payload) {
-	CURL 		*curl;
+char* generatePayload(_Int8t pulseCode, char* dataType, int value)
+{
+	char* payload = (char*) malloc(256);	//probably malloc this better later
+	long timeStamp = time(NULL);
+	sprintf(payload, "{\"timestamp\":%ld, \"%s\":%d}", timeStamp, dataType, value);
+	return payload;
+}
+
+int makePostRequest(int deviceID, char* datatype, char* payload)
+{
+	printf("Sending payload: %s\n", payload);
+	/*CURL 		*curl;
 	CURLcode 	res;
 	char*		website;
 
@@ -129,6 +135,7 @@ int makePostRequest(int deviceID, char* datatype, char* payload) {
     }
 
     curl_easy_cleanup(curl);
-	curl_global_cleanup();
+	curl_global_cleanup();*/
+	free(payload);
 	return 0;
 }
