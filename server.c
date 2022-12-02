@@ -6,17 +6,26 @@
  * sends http requests to wearable device web server
  * API Doc -> https://absorbed-bone-267.notion.site/Wearable-Web-Server-API-f3e05f98a6e441269ec196b2640cb77e
  *
- * TODO: replace prints in switch (msg.pulse.code) with appropriate posts -> https://www.w3schools.blog/send-http-request-in-c
  */
 #include <sys/iofunc.h>
 #include <sys/dispatch.h>
 #include <sys/time.h>
+#include <sys/socket.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <string.h>
-#include <curl/curl.h>
+
 
 #include "defs.h"
 
-#define WEBSITE_URL			"https://mywebsite.com"
+#define PORT				80				//todo
+#define WEBSITE_HOST		"httpbin.org"	//todo
+#define PAYLOAD_SIZE		256
+#define MESSAGE_BUFFER_SIZE	1024
+#define DEBUG				1				//todo
 
 char* generatePayload(_Int8t pulseCode, char* dataType, int value);
 int makePostRequest(int deviceID, char* datatype, char* payload);
@@ -31,7 +40,6 @@ int main(int argc, char **argv)
 	name_attach_t *attach;
 	myMessage_t msg;
 	int 	rcvid;
-	int 	heartRate, bloodPressure, bodyTemperature, stepCount, GPSData;
 	char*	payload;
 
 	/* Create a local name (/dev/name/local/...) */
@@ -54,33 +62,25 @@ int main(int argc, char **argv)
 					printf("\n\n<>Data generation terminated, closing device server.<>\n\n");
 					return 0;
 				case HEART_RATE_PULSE_CODE:
-					heartRate = msg.pulse.value.sival_int;
-					printf("received heart rate data = %d\n", heartRate);
-					payload = generatePayload(msg.pulse.code, "heartRate", heartRate);
+					payload = generatePayload(msg.pulse.code, "heartRate", msg.pulse.value.sival_int);
 					makePostRequest(0, "heartRate", payload);
 					break;
 				case BLOOD_PRESSURE_PULSE_CODE:
-					//possible to have two ints produced for systolic and diastolic?
-					bloodPressure = msg.pulse.value.sival_int;
-					printf("received blood pressure data = %d\n", bloodPressure);
-					payload = generatePayload(msg.pulse.code, "bloodPressure", bloodPressure);
+					//todo possible to have two ints produced for systolic and diastolic?
+					payload = generatePayload(msg.pulse.code, "bloodPressure", msg.pulse.value.sival_int);
 					makePostRequest(0, "bloodPressure", payload);
 					break;
 				case BODY_TEMPERATURE_PULSE_CODE:
-					bodyTemperature = msg.pulse.value.sival_int;
-					printf("received body temp data = %d\n", bodyTemperature);
-					payload = generatePayload(msg.pulse.code, "bodyTemperature", bodyTemperature);
+					payload = generatePayload(msg.pulse.code, "bodyTemperature", msg.pulse.value.sival_int);
 					makePostRequest(0, "bodyTemperature", payload);
 					break;
 				case STEP_COUNT_PULSE_CODE:
-					stepCount = msg.pulse.value.sival_int;
-					printf("received step count data = %d\n", stepCount);
-					payload = generatePayload(msg.pulse.code, "stepCount", stepCount);
+					payload = generatePayload(msg.pulse.code, "stepCount", msg.pulse.value.sival_int);
 					makePostRequest(0, "stepCount", payload);
 					break;
 				case GPS_PULSE_CODE:
-					//no api route
-					printf("received gps data = %d\n", msg.pulse.value.sival_int);
+					//todo no api route
+					printf("Received gps data: %d\n", msg.pulse.value.sival_int);
 					break;
 				default:
 					printf("Pulse code = %d | value = %d\n\n", msg.pulse.code, msg.pulse.value.sival_int);
@@ -100,42 +100,106 @@ int main(int argc, char **argv)
 
 char* generatePayload(_Int8t pulseCode, char* dataType, int value)
 {
-	char* payload = (char*) malloc(256);	//probably malloc this better later
+	if (DEBUG == 1)
+	{
+		printf("Received %s data: %d\n", dataType, value);
+	}
+
+	char* payload = (char*) malloc(PAYLOAD_SIZE);
 	long timeStamp = time(NULL);
-	sprintf(payload, "{\"timestamp\":%ld, \"%s\":%d}", timeStamp, dataType, value);
+
+	/* Build JSON payload */
+	snprintf(payload, PAYLOAD_SIZE,
+			"{\r\n"
+			"  \"timestamp\":%ld,\r\n"
+			"  \"%s\":%d\r\n"
+			"}", timeStamp, dataType, value);
+
 	return payload;
 }
 
 int makePostRequest(int deviceID, char* datatype, char* payload)
 {
-	printf("Sending payload: %s\n", payload);
-	/*CURL 		*curl;
-	CURLcode 	res;
-	char*		website;
+	char 				*host = WEBSITE_HOST;
+	struct hostent 		*server;
+	struct sockaddr_in 	serv_addr;
+	int 				sockfd;
+	char 				message[MESSAGE_BUFFER_SIZE], response[MESSAGE_BUFFER_SIZE];
 
-	curl_global_init(CURL_GLOBAL_ALL);
-	curl = curl_easy_init();
+	if (DEBUG == 0)
+	{
+		/* Build http request */
+		snprintf(message, sizeof(message),
+				"POST /%d/%s HTTP/1.0\r\n"
+				"Host: %s\r\n"
+				"Content-type: application/json\r\n"
+				"Content-length: %d\r\n\r\n"
+				"%s\r\n", deviceID, datatype, host, (unsigned int) strlen(payload), payload);
+	}
+	if (DEBUG == 1)
+	{
+		snprintf(message, sizeof(message),
+				"POST /post HTTP/1.0\r\n"
+				"Host: %s\r\n"
+				"Content-Type: application/json\r\n"
+				"Content-Length: %d\r\n\r\n"
+				"%s\r\n", host, (unsigned int) strlen(payload), payload);
 
-	if(curl == NULL) {
-		return 128;
+		printf("Http request: \n%s\n", message);
 	}
 
-	sprintf(website, "%s/%d/%s", WEBSITE_URL, deviceID, datatype);
+	/* Create socket file descriptor */
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd < 0)
+	{
+		perror("Error: failed to create socket.");
+		exit(EXIT_FAILURE);
+	}
 
-	struct curl_slist *headers = NULL;
-	curl_slist_append(headers, "Content-Type: application/json");
+	/* Look up host ip */
+	server = gethostbyname(host);
+	if (server == NULL)
+	{
+		perror("Error: failed to get host.");
+		exit(EXIT_FAILURE);
+	}
 
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	curl_easy_setopt(curl, CURLOPT_URL, website);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload);
-	res = curl_easy_perform(curl);
+	/* Fill in structure */
+	memset(&serv_addr,0,sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	serv_addr.sin_port = htons(PORT);
+	memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
 
-    if(res != CURLE_OK) {
-    	fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-    }
+	/* Connect the socket */
+	if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0)
+	{
+		perror("Error: failed to connect.");
+		exit(EXIT_FAILURE);
+	}
 
-    curl_easy_cleanup(curl);
-	curl_global_cleanup();*/
+	/* Send http request */
+	if (write(sockfd, message, strlen(message)) < 0)
+	{
+		perror("Error: failed to send http request.");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Read response */
+	if (read(sockfd, response, sizeof(response)) < 0)
+	{
+		perror("Error: failed to read http response.");
+		exit(EXIT_FAILURE);
+	}
+
+	if (DEBUG == 1)
+	{
+		printf("Response: \n%s\n", response);
+	}
+
+	/* Clean up */
+	close(sockfd);
 	free(payload);
+
 	return 0;
 }

@@ -15,7 +15,7 @@ TARGET = -Vgcc_ntox86_64
 
 
 CFLAGS += $(DEBUG) $(TARGET) -Wall
-LDFLAGS+= $(DEBUG) $(TARGET)
+LDFLAGS+= $(DEBUG) $(TARGET) -l socket
 BINS = dataGen server
 all: $(BINS) 
 
