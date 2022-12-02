@@ -68,4 +68,8 @@
 			</target>
 		</buildTargets>
 	</storageModule>
+	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="com.qnx.tools.ide.qde.core.settings">
+		<dependencyChecking mode="ALL"/>
+	</storageModule>
 </cproject>
