@@ -208,7 +208,7 @@ void *generateBloodPressure(int server_coid)
 void *generateBodyTemperature(int server_coid)
 {
 	int data;
-	for(int i=0;; ++i)
+	for(;;)
 	{
 		data = generateRandomNumber(BODY_TEMPERATURE_MIN, BODY_TEMPERATURE_MAX);
 		printf("Body temp = %d\n", data);
