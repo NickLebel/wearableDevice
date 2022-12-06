@@ -21,11 +21,11 @@
 
 #include "defs.h"
 
-#define PORT				80				//todo
-#define WEBSITE_HOST		"httpbin.org"	//todo
+#define PORT				80
+#define WEBSITE_HOST		"18.209.255.145"
 #define PAYLOAD_SIZE		256
 #define MESSAGE_BUFFER_SIZE	1024
-#define DEBUG				1				//todo
+#define DEBUG				1						//todo
 
 char* generatePayload(_Int8t pulseCode, char* dataType, int value);
 int makePostRequest(int deviceID, char* datatype, char* payload);
@@ -63,20 +63,20 @@ int main(int argc, char **argv)
 					return 0;
 				case HEART_RATE_PULSE_CODE:
 					payload = generatePayload(msg.pulse.code, "heartRate", msg.pulse.value.sival_int);
-					makePostRequest(0, "heartRate", payload);
+					makePostRequest(0, "heart-rate", payload);
 					break;
 				case BLOOD_PRESSURE_PULSE_CODE:
 					//todo possible to have two ints produced for systolic and diastolic?
 					payload = generatePayload(msg.pulse.code, "bloodPressure", msg.pulse.value.sival_int);
-					makePostRequest(0, "bloodPressure", payload);
+					makePostRequest(0, "blood-pressure", payload);
 					break;
 				case BODY_TEMPERATURE_PULSE_CODE:
 					payload = generatePayload(msg.pulse.code, "bodyTemperature", msg.pulse.value.sival_int);
-					makePostRequest(0, "bodyTemperature", payload);
+					makePostRequest(0, "body-temperature", payload);
 					break;
 				case STEP_COUNT_PULSE_CODE:
 					payload = generatePayload(msg.pulse.code, "stepCount", msg.pulse.value.sival_int);
-					makePostRequest(0, "stepCount", payload);
+					makePostRequest(0, "step-count", payload);
 					break;
 				case GPS_PULSE_CODE:
 					//todo no api route
@@ -121,30 +121,34 @@ char* generatePayload(_Int8t pulseCode, char* dataType, int value)
 int makePostRequest(int deviceID, char* datatype, char* payload)
 {
 	char 				*host = WEBSITE_HOST;
+	char				*userID = "638e81df7353cb6eced3875c";
 	struct hostent 		*server;
 	struct sockaddr_in 	serv_addr;
 	int 				sockfd;
 	char 				message[MESSAGE_BUFFER_SIZE], response[MESSAGE_BUFFER_SIZE];
 
-	if (DEBUG == 0)
-	{
-		/* Build http request */
-		snprintf(message, sizeof(message),
-				"POST /%d/%s HTTP/1.0\r\n"
-				"Host: %s\r\n"
-				"Content-type: application/json\r\n"
-				"Content-length: %d\r\n\r\n"
-				"%s\r\n", deviceID, datatype, host, (unsigned int) strlen(payload), payload);
-	}
-	if (DEBUG == 1)
+	if (DEBUG == 2)	//we want to send to httpbin.org for testing
 	{
 		snprintf(message, sizeof(message),
 				"POST /post HTTP/1.0\r\n"
-				"Host: %s\r\n"
+				"Host: httpbin.org\r\n"
 				"Content-Type: application/json\r\n"
 				"Content-Length: %d\r\n\r\n"
-				"%s\r\n", host, (unsigned int) strlen(payload), payload);
+				"%s\r\n", (unsigned int) strlen(payload), payload);
+	}
+	else
+	{
+		/* Build http request */
+		snprintf(message, sizeof(message),
+			"POST /api/users/%s/biometrics/%s HTTP/1.0\r\n"
+			"Host: %s\r\n"
+			"Content-type: application/json\r\n"
+			"Content-length: %d\r\n\r\n"
+			"%s\r\n", userID, datatype, host, (unsigned int) strlen(payload), payload);
+	}
 
+	if (DEBUG >= 1)
+	{
 		printf("Http request: \n%s\n", message);
 	}
 
@@ -192,7 +196,7 @@ int makePostRequest(int deviceID, char* datatype, char* payload)
 		exit(EXIT_FAILURE);
 	}
 
-	if (DEBUG == 1)
+	if (DEBUG >= 1)
 	{
 		printf("Response: \n%s\n", response);
 	}
