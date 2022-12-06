@@ -39,17 +39,25 @@
 
 /*
  * RNG ranges (data generated is between min and max)
+ * Data sources:
+ * heart rate    : https://www.healthline.com/health/dangerous-heart-rate#dangerous-heart-rate
+ * Blood pressure: https://www.verywellhealth.com/systolic-and-diastolic-blood-pressure-1746075
  */
-#define HEART_RATE_MIN				30
-#define HEART_RATE_MAX				240
-#define BLOOD_PRESSURE_MIN			90
-#define BLOOD_PRESSURE_MAX			200
-#define BODY_TEMPERATURE_MIN		90
-#define BODY_TEMPERATURE_MAX		105
-#define STEP_COUNT_MIN				400
-#define STEP_COUNT_MAX				1000
-#define GPS_MIN						0
-#define GPS_MAX						1
+#define HEART_RATE_MIN					60
+#define HEART_RATE_MAX					200
+#define BLOOD_PRESSURE_SYSTOLIC_MIN		90
+#define BLOOD_PRESSURE_SYSTOLIC_MAX		200
+#define BLOOD_PRESSURE_DIASTOLIC_MIN	60
+#define BLOOD_PRESSURE_DIASTOLIC_MAX	140
+#define BODY_TEMPERATURE_MIN			95		//temp in degrees Fahrenheit
+#define BODY_TEMPERATURE_MAX			105		//temp in degrees Fahrenheit
+#define STEP_COUNT_MIN					0
+#define STEP_COUNT_MAX					500
+#define GPS_MIN							1
+#define GPS_MAX							1000
+
+#define BLOOD_PRESSURE_INT_MANIP		1000
+#define GPS_INT_MANIP					10000
 
 /*
  * Pulse codes
