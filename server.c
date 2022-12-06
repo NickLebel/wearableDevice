@@ -98,6 +98,9 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+//see defs.h for blood pressure and GPS int manip defs
+//BLOOD_PRESSURE_INT_MANIP	-> value / BLOOD_PRESSURE_INT_MANIP = systolic || value % BLOOD_PRESSURE_INT_MANIP = diastolic
+//GPS_INT_MANIP				-> value / GPS_INT_MANIP = longitude || data % GPS_INT_MANIP = latitude
 char* generatePayload(_Int8t pulseCode, char* dataType, int value)
 {
 	if (DEBUG == 1)
