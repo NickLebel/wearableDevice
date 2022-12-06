@@ -4,11 +4,8 @@
  * data is produced by Round robin priority threads
  * most data generation can be easily modified through the definitions (defs.h)
  * frequencies are in seconds
+ * data generated may not be completely accurate for the purpose of this project, data assumes moderate ranges and excludes outliers
  *
- * TODO: implement logic for data generation (i.e increment up down then randomize every X amount of loops)
- * TODO: determine type of GPS data to send
- * TODO: make step count send data randomly to trigger idle
- * TODO: remove prints from threads for final version
  */
 
 /* TODO: remove this part for final version
@@ -147,16 +144,28 @@ int main(int argc, char **argv)
  * generateHeartRate()
  * generates heart rate data
  * data range is between HEART_RATE_MIN and HEART_RATE_MAX
+ * generated heart rate increments of decrements by [-2, 2] (may cause range to be above or below MIN / MAX)
+ * every 20 seconds, a new rate is generated
  * frequency = HEART_RATE_SLEEP
  * MsgSendPulse Priority = -1 (inherits the threads priority)
  */
 void *generateHeartRate(int server_coid)
 {
 	int data;
-	for(;;)
+	data = generateRandomNumber(HEART_RATE_MIN, HEART_RATE_MAX);
+	for(int i=0;;++i)
 	{
-		data = generateRandomNumber(HEART_RATE_MIN, HEART_RATE_MAX);
+		//new heart rate generated every 20 sec
+		if(i == 20)
+		{
+			data = generateRandomNumber(HEART_RATE_MIN, HEART_RATE_MAX);
+			i = 0;
+		}
+
+		//randomly increase or decrease heart rate
+		data += generateRandomNumber(-2, 2);
 		printf("Heart rate = %d\n", data);
+
 		if(MsgSendPulse(server_coid, -1, HEART_RATE_PULSE_CODE, data) == -1){printf("Pulse failed to send from heart rate");}
 		sleep(HEART_RATE_SLEEP);
 	}
@@ -166,16 +175,24 @@ void *generateHeartRate(int server_coid)
 /*
  * generateBloodPressure()
  * generates blood pressure data
- * data range is between BLOOD_PRESSURE_MIN and BLOOD_PRESSURE_MAX
+ * data sent = systolic * 1000 + diastolic -> fits both into 1 int for pulse
+ * server computes systolic with data/1000, diastolic with data%1000
  * frequency = BLOOD_PRESSURE_SLEEP
  */
 void *generateBloodPressure(int server_coid)
 {
-	int data;
+	int data, systolic, diastolic;
 	for(;;)
 	{
-		data = generateRandomNumber(BLOOD_PRESSURE_MIN, BLOOD_PRESSURE_MAX);
-		printf("Blood pressure = %d\n", data);
+		systolic  = generateRandomNumber(BLOOD_PRESSURE_SYSTOLIC_MIN, BLOOD_PRESSURE_SYSTOLIC_MAX);
+		diastolic = generateRandomNumber(BLOOD_PRESSURE_DIASTOLIC_MIN, BLOOD_PRESSURE_DIASTOLIC_MAX);
+
+		//int manipulation to fit into pulse value
+		data = systolic * 1000 + diastolic;
+
+		printf("Systolic blood pressure = %d\n", data/BLOOD_PRESSURE_INT_MANIP);
+		printf("Diastolic blood pressure = %d\n", data%BLOOD_PRESSURE_INT_MANIP);
+
 		if(MsgSendPulse(server_coid, -1, BLOOD_PRESSURE_PULSE_CODE, data) == -1){printf("Pulse failed to send from blood pressure");}
 		sleep(BLOOD_PRESSURE_SLEEP);
 	}
@@ -191,7 +208,7 @@ void *generateBloodPressure(int server_coid)
 void *generateBodyTemperature(int server_coid)
 {
 	int data;
-	for(;;)
+	for(int i=0;; ++i)
 	{
 		data = generateRandomNumber(BODY_TEMPERATURE_MIN, BODY_TEMPERATURE_MAX);
 		printf("Body temp = %d\n", data);
@@ -224,16 +241,25 @@ void *generateStepCount(int server_coid)
  * generateGPS()
  * generates GPS data
  * data range is between GPS_MIN and GPS_MAX
+ * data is longitude x latitude = cooridantes
+ * data sent = longitude * 100000 + latitude -> fits both into 1 int for pulse
+ * server computes systolic with data/1000, diastolic with data%1000
  * frequency = GPS_SLEEP
- * TODO: determine type of GPS data to send (maybe something other than int?)
  */
 void *generateGPS(int server_coid)
 {
-	int data;
+	int data, longitude, latitude;
 	for(;;)
 	{
-		data = generateRandomNumber(GPS_MIN, GPS_MAX);
-		printf("GPS data = %d\n", data);
+		longitude = generateRandomNumber(GPS_MIN, GPS_MAX);
+		latitude = generateRandomNumber(GPS_MIN, GPS_MAX);
+
+		//int manip
+		data = longitude * GPS_INT_MANIP + latitude;
+
+		printf("GPS longitude data = %d\n", data/GPS_INT_MANIP);
+		printf("GPS latitude data = %d\n", data%GPS_INT_MANIP);
+
 		if(MsgSendPulse(server_coid, -1, GPS_PULSE_CODE, data) == -1){printf("Pulse failed to send from GPS");}
 		sleep(GPS_SLEEP);
 	}
