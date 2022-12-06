@@ -55,9 +55,6 @@ int main(int argc, char **argv)
 			//handle pulse codes received from dataGen
 			switch(msg.pulse.code)
 			{
-				//TODO: replace prints with API requests -> https://www.w3schools.blog/send-http-request-in-c
-				//if server cannot keep up with incoming / outgoing requests, may need to implement threads to send outgoing requests
-				//no issues (so far) between dataGen -> server with round robin + priority threads on data side
 				case _PULSE_CODE_DISCONNECT:
 					printf("\n\n<>Data generation terminated, closing device server.<>\n\n");
 					return 0;
