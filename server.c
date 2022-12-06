@@ -23,12 +23,13 @@
 
 #define PORT				80
 #define WEBSITE_HOST		"18.209.255.145"
+#define USER_ID				"638fd1616d83ee235428c93a"
 #define PAYLOAD_SIZE		256
 #define MESSAGE_BUFFER_SIZE	1024
 #define DEBUG				1						//todo
 
 char* generatePayload(_Int8t pulseCode, char* dataType, int value);
-int makePostRequest(int deviceID, char* datatype, char* payload);
+int makePostRequest(char* datatype, char* payload);
 
 int main(int argc, char **argv)
 {
@@ -60,24 +61,24 @@ int main(int argc, char **argv)
 					return 0;
 				case HEART_RATE_PULSE_CODE:
 					payload = generatePayload(msg.pulse.code, "heartRate", msg.pulse.value.sival_int);
-					makePostRequest(0, "heart-rate", payload);
+					makePostRequest("heart-rate", payload);
 					break;
 				case BLOOD_PRESSURE_PULSE_CODE:
-					//todo possible to have two ints produced for systolic and diastolic?
 					payload = generatePayload(msg.pulse.code, "bloodPressure", msg.pulse.value.sival_int);
-					makePostRequest(0, "blood-pressure", payload);
+					makePostRequest("blood-pressure", payload);
 					break;
 				case BODY_TEMPERATURE_PULSE_CODE:
 					payload = generatePayload(msg.pulse.code, "bodyTemperature", msg.pulse.value.sival_int);
-					makePostRequest(0, "body-temperature", payload);
+					makePostRequest("body-temperature", payload);
 					break;
 				case STEP_COUNT_PULSE_CODE:
 					payload = generatePayload(msg.pulse.code, "stepCount", msg.pulse.value.sival_int);
-					makePostRequest(0, "step-count", payload);
+					makePostRequest("step-count", payload);
 					break;
 				case GPS_PULSE_CODE:
-					//todo no api route
-					printf("Received gps data: %d\n", msg.pulse.value.sival_int);
+					//todo
+					//payload = generatePayload(msg.pulse.code, "gps", msg.pulse.value.sival_int);
+					//makePostRequest("gps-location", payload);
 					break;
 				default:
 					printf("Pulse code = %d | value = %d\n\n", msg.pulse.code, msg.pulse.value.sival_int);
@@ -104,24 +105,56 @@ char* generatePayload(_Int8t pulseCode, char* dataType, int value)
 	{
 		printf("Received %s data: %d\n", dataType, value);
 	}
-
+	int systolic;
+	int diastolic;
+	int longitude;
+	int lattitude;
 	char* payload = (char*) malloc(PAYLOAD_SIZE);
 	long timeStamp = time(NULL);
 
-	/* Build JSON payload */
-	snprintf(payload, PAYLOAD_SIZE,
-			"{\r\n"
-			"  \"timestamp\":%ld,\r\n"
-			"  \"%s\":%d\r\n"
-			"}", timeStamp, dataType, value);
+	if (strcmp(dataType, "bloodPressure") == 0)
+	{
+		systolic = value / BLOOD_PRESSURE_INT_MANIP;
+		diastolic = value % BLOOD_PRESSURE_INT_MANIP;
+
+		/* Build bloodPressure JSON payload */
+		snprintf(payload, PAYLOAD_SIZE,
+				"{\r\n"
+				"  \"timestamp\":%ld,\r\n"
+				"  \"bloodPressureSystolic\":%d,\r\n"
+				"  \"bloodPressureDiastolic\":%d\r\n"
+				"}", timeStamp, systolic, diastolic);
+	}
+	else if (strcmp(dataType, "gps") == 0)
+	{
+		longitude = value / GPS_INT_MANIP;
+		lattitude = value % GPS_INT_MANIP;
+
+		/* Build GPS JSON payload */
+		snprintf(payload, PAYLOAD_SIZE,
+				"{\r\n"
+				"  \"timestamp\":%ld,\r\n"
+				"  \"longitude\":%d,\r\n"
+				"  \"lattitude\":%d\r\n"
+				"}", timeStamp, longitude, lattitude);
+	}
+	else
+	{
+		/* Build generic JSON payload */
+		snprintf(payload, PAYLOAD_SIZE,
+				"{\r\n"
+				"  \"timestamp\":%ld,\r\n"
+				"  \"%s\":%d\r\n"
+				"}", timeStamp, dataType, value);
+	}
 
 	return payload;
 }
 
-int makePostRequest(int deviceID, char* datatype, char* payload)
+int makePostRequest(char* datatype, char* payload)
 {
 	char 				*host = WEBSITE_HOST;
-	char				*userID = "638e81df7353cb6eced3875c";
+	char				*userID = USER_ID;
 	struct hostent 		*server;
 	struct sockaddr_in 	serv_addr;
 	int 				sockfd;
