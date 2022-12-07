@@ -1,13 +1,9 @@
 /*
  * defs.h
+ * contains definitions used between dataGen.c and server.c
  */
 #ifndef _DEFS_H_
 #define _DEFS_H_
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <sched.h>
-#include <sys/neutrino.h>
 
 /*
  * attach point for server / dataGen communication
@@ -54,8 +50,11 @@
 #define STEP_COUNT_MIN					0
 #define STEP_COUNT_MAX					500
 #define GPS_MIN							1
-#define GPS_MAX							1000
+#define GPS_MAX							999
 
+/*
+ * Int manip for pulses
+ */
 #define BLOOD_PRESSURE_INT_MANIP		1000
 #define GPS_INT_MANIP					10000
 
@@ -77,5 +76,15 @@ struct timespec g_repl_period = { 10, 0 };
 #define MY_REPL_PERIOD g_repl_period
 #define MY_INIT_BUDGET g_init_budget
 #define MY_MAX_REPL 10
+
+/*
+ * Http requests
+ */
+#define PORT				80
+#define WEBSITE_HOST		"18.209.255.145"
+#define USER_ID				"638fd1616d83ee235428c93a"
+#define PAYLOAD_SIZE		256
+#define MESSAGE_BUFFER_SIZE	1024
+#define DEBUG				1
 
 #endif //_DEFS_H
