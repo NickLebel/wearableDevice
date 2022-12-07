@@ -18,16 +18,14 @@
 #include <netdb.h>
 #include <string.h>
 
-
+/*
+ * DEFS.H CONTAINS PULSE CODES AND WEBSERVER DEFINITIONS
+ */
 #include "defs.h"
 
-#define PORT				80
-#define WEBSITE_HOST		"18.209.255.145"
-#define USER_ID				"638fd1616d83ee235428c93a"
-#define PAYLOAD_SIZE		256
-#define MESSAGE_BUFFER_SIZE	1024
-#define DEBUG				1						//todo
-
+/*
+ * Http request functions
+ */
 char* generatePayload(_Int8t pulseCode, char* dataType, int value);
 int makePostRequest(char* datatype, char* payload);
 
@@ -50,10 +48,13 @@ int main(int argc, char **argv)
 	{
 		rcvid = MsgReceive(attach->chid, &msg, sizeof(msg), NULL);
 
-		//received pulse
+		/* received pulse */
 		if (rcvid == 0)
 		{
-			//handle pulse codes received from dataGen
+			/*
+			 * handle pulse codes received from dataGen
+			 * generate and send http request to web server when pulse is received
+			 */
 			switch(msg.pulse.code)
 			{
 				case _PULSE_CODE_DISCONNECT:
@@ -76,9 +77,8 @@ int main(int argc, char **argv)
 					makePostRequest("step-count", payload);
 					break;
 				case GPS_PULSE_CODE:
-					//todo
-					//payload = generatePayload(msg.pulse.code, "gps", msg.pulse.value.sival_int);
-					//makePostRequest("gps-location", payload);
+					payload = generatePayload(msg.pulse.code, "gps", msg.pulse.value.sival_int);
+					makePostRequest("gps-location", payload);
 					break;
 				default:
 					printf("Pulse code = %d | value = %d\n\n", msg.pulse.code, msg.pulse.value.sival_int);
@@ -96,9 +96,18 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-//see defs.h for blood pressure and GPS int manip defs
-//BLOOD_PRESSURE_INT_MANIP	-> value / BLOOD_PRESSURE_INT_MANIP = systolic || value % BLOOD_PRESSURE_INT_MANIP = diastolic
-//GPS_INT_MANIP				-> value / GPS_INT_MANIP = longitude || data % GPS_INT_MANIP = latitude
+/*
+ * generatePayload()
+ * generates the appropriate payload to be sent by makePostRequest() according to data type
+ *
+ * blood pressure:
+ * systolic  = value / BLOOD_PRESSURE_INT_MANIP
+ * diastolic = value % BLOOD_PRESSURE_INT_MANIP
+ *
+ * GPS:
+ * longitude = value / GPS_INT_MANIP
+ * latitude  = value % GPS_INT_MANIP
+ */
 char* generatePayload(_Int8t pulseCode, char* dataType, int value)
 {
 	if (DEBUG == 1)
@@ -151,6 +160,11 @@ char* generatePayload(_Int8t pulseCode, char* dataType, int value)
 	return payload;
 }
 
+/*
+ * makePostRequest()
+ * makes a post request to web server with the payload generated from generatePayload()
+ * debugging can be turned on/off by DEBUG (in defs.h)
+ */
 int makePostRequest(char* datatype, char* payload)
 {
 	char 				*host = WEBSITE_HOST;
