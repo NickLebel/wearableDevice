@@ -1,28 +1,16 @@
 /*
  * dataGen.c
- * produces simulated biometric data for the wearable device
+ * produces simulated data for the wearable device
  * data is produced by Round robin priority threads
  * most data generation can be easily modified through the definitions (defs.h)
  * frequencies are in seconds
  * data generated may not be completely accurate for the purpose of this project, data assumes moderate ranges and excludes outliers
- *
  */
 
-/* TODO: remove this part for final version
- * Biometrics
- * Heart rate 		--> generate
- * Blood Pressure 	--> generate
- * Body Temp		--> generate
- * Calories Burned	--> Calculated from (base metabolic rate * time) + steps?
- */
-
-/* General
- * Device Battery	--> device function (start at 100, increment down every X seconds)
- * Step count		--> generate
- * GPS data			--> generate (TBD type)
- * Idle tracker		--> device function (maybe time since last step?)
- */
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <sched.h>
+#include <sys/neutrino.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
@@ -50,92 +38,106 @@ int main(int argc, char **argv)
 	struct sched_param  params;
 	int i, ret, server_coid;
 
-	//seed random number generator
+	/* seed random number generator for generateRandomNumber() */
 	srand(time(0));
 
-	//initialize threads
+	/* initialize threads */
 	for(i=0; i<NUMTHREADS; ++i)
 	{
 		pthread_attr_init(&threads[i]);
 	}
 
-	//set threads to explicit schedule
+	/* set threads to explicit schedule */
 	for(i=0; i<NUMTHREADS; ++i)
 	{
 		ret = pthread_attr_setinheritsched(&threads[i], PTHREAD_EXPLICIT_SCHED);
 		if(ret != 0) {printf("pthread_attr_setinheritsched() failed %d \n", errno); return 1;}
 	}
 
-	//set threads to round robin
+	/* set threads to round robin */
 	for(i=0; i<NUMTHREADS; ++i)
 	{
 		ret = pthread_attr_setschedpolicy(&threads[i], SCHED_RR);
 		if(ret != 0){printf("pthread_attr_setschedpolicy() failed %d %d\n", ret, errno); return 1;}
 	}
 
-	//setup sched_param structure
+	/* setup sched_param structure */
 	params.sched_ss_low_priority = MY_LOW_PRIORITY;
 	memcpy(&params.sched_ss_init_budget, &MY_INIT_BUDGET, sizeof(MY_INIT_BUDGET));
 	memcpy(&params.sched_ss_repl_period, &MY_REPL_PERIOD, sizeof(MY_REPL_PERIOD));
 	params.sched_ss_max_repl = MY_MAX_REPL;
 
 
-	//set sched_param priorities and set thread sched_param
-	//0 = heart rate / 1 = blood pressure / 2 = body temperature / 3 = step count / 4 = GPS
-
-	//heart rate thread
+	/*
+	 * set sched_param priorities and set thread sched_param
+	 * 0 = heart rate
+	 * 1 = blood pressure
+	 * 2 = body temperature
+	 * 3 = step count
+	 * 4 = GPS
+	 */
+	/* heart rate thread */
 	params.sched_priority = HEART_RATE_PRIORITY;
 	ret = pthread_attr_setschedparam(&threads[0], &params);
 	if(ret != 0){printf("pthread_attr_setschedparam() failed %d \n", errno); return 1;}
 
-	//blood pressure thread
+	/* blood pressure thread */
 	params.sched_priority = BLOOD_PRESSURE_PRIORITY;
 	ret = pthread_attr_setschedparam(&threads[1], &params);
 	if(ret != 0){printf("pthread_attr_setschedparam() failed %d \n", errno); return 1;}
 
-	//body temperature thread
+	/* body temperature thread */
 	params.sched_priority = BODY_TEMPERATURE_PRIORITY;
 	ret = pthread_attr_setschedparam(&threads[2], &params);
 	if(ret != 0){printf("pthread_attr_setschedparam() failed %d \n", errno); return 1;}
 
-	//body temperature thread
+	/* body temperature thread */
 	params.sched_priority = STEP_COUNT_PRIORITY;
 	ret = pthread_attr_setschedparam(&threads[3], &params);
 	if(ret != 0){printf("pthread_attr_setschedparam() failed %d \n", errno); return 1;}
 
-	//GPS thread
+	/* GPS thread */
 	params.sched_priority = GPS_PRIORITY;
 	ret = pthread_attr_setschedparam(&threads[4], &params);
 	if(ret != 0){printf("pthread_attr_setschedparam() failed %d \n", errno); return 1;}
 
 
-	//setup connection to server
+	/* setup connection to server */
 	if ((server_coid = name_open(ATTACH_POINT, 0)) == -1) {return EXIT_FAILURE;}
 
-	//start the threads
-	//0 = heart rate / 1 = blood pressure / 2 = body temperature / 3 = step count / 4 = GPS
-	//heart thread + get pthread_t for pthread_join
+	/*
+	 * start the threads
+	 * 0 = heart rate
+	 * 1 = blood pressure
+	 * 2 = body temperature
+	 * 3 = step count
+	 *  4 = GPS
+	 */
+
+	/* heart thread (also get p_thread for join)*/
 	ret = pthread_create(&thr, &threads[0], &generateHeartRate, server_coid);
 	if(ret != 0){printf("pthread_create() failed %d \n", errno); return 1;}
 
-	//blood pressure thread
+	/* blood pressure thread */
 	ret = pthread_create(NULL, &threads[1], &generateBloodPressure, server_coid);
 	if(ret != 0){printf("pthread_create() failed %d \n", errno); return 1;}
 
-	//body temperature thread
+	/* body temperature thread */
 	ret = pthread_create(NULL, &threads[2], &generateBodyTemperature, server_coid);
 	if(ret != 0){printf("pthread_create() failed %d \n", errno); return 1;}
 
-	//step count thread
+	/* step count thread */
 	ret = pthread_create(NULL, &threads[3], &generateStepCount, server_coid);
 	if(ret != 0){printf("pthread_create() failed %d \n", errno); return 1;}
 
-	//GPS thread
+	/* GPS thread */
 	ret = pthread_create(NULL, &threads[4], &generateGPS, server_coid);
 	if(ret != 0){printf("pthread_create() failed %d \n", errno); return 1;}
 
-	//keep threads looping until manual termination
-	//server will also terminate once data generator is terminated
+	/*
+	 * keep threads looping until manual termination
+	 * server will also terminate once data generator is terminated
+	 */
 	pthread_join(thr, NULL);
 	return 0;
 }
@@ -187,7 +189,7 @@ void *generateBloodPressure(int server_coid)
 		systolic  = generateRandomNumber(BLOOD_PRESSURE_SYSTOLIC_MIN, BLOOD_PRESSURE_SYSTOLIC_MAX);
 		diastolic = generateRandomNumber(BLOOD_PRESSURE_DIASTOLIC_MIN, BLOOD_PRESSURE_DIASTOLIC_MAX);
 
-		//int manipulation to fit into pulse value
+		/* int manipulation to fit into pulse value */
 		data = systolic * 1000 + diastolic;
 
 		printf("Systolic blood pressure = %d\n", data/BLOOD_PRESSURE_INT_MANIP);
@@ -241,9 +243,9 @@ void *generateStepCount(int server_coid)
  * generateGPS()
  * generates GPS data
  * data range is between GPS_MIN and GPS_MAX
- * data is longitude x latitude = cooridantes
- * data sent = longitude * 100000 + latitude -> fits both into 1 int for pulse
- * server computes systolic with data/1000, diastolic with data%1000
+ * data is longitude and latitude -> coordinates
+ * data sent = longitude * GPS_INT_MANIP + latitude -> fits both into 1 int for pulse
+ * server computes longitude with data/GPS_INT_MANIP, latitude with data%GPS_INT_MANIP
  * frequency = GPS_SLEEP
  */
 void *generateGPS(int server_coid)
@@ -254,7 +256,7 @@ void *generateGPS(int server_coid)
 		longitude = generateRandomNumber(GPS_MIN, GPS_MAX);
 		latitude = generateRandomNumber(GPS_MIN, GPS_MAX);
 
-		//int manip
+		/* int manip */
 		data = longitude * GPS_INT_MANIP + latitude;
 
 		printf("GPS longitude data = %d\n", data/GPS_INT_MANIP);
