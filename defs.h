@@ -31,7 +31,7 @@
 #define BLOOD_PRESSURE_SLEEP 		5
 #define BODY_TEMPERATURE_SLEEP		10
 #define STEP_COUNT_SLEEP			10
-#define GPS_SLEEP					60
+#define GPS_SLEEP					30
 
 /*
  * RNG ranges (data generated is between min and max)
